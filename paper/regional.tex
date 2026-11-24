@@ -1,0 +1,50 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[letterpaper,left=.83in,right=.83in,top=.70in,bottom=.65in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern,booktabs,xcolor,microtype,hyperref,titlesec}
+\definecolor{ink}{HTML}{173C43}
+\definecolor{muted}{HTML}{475B60}
+\hypersetup{colorlinks=true,urlcolor=ink,pdfauthor={Robert Jahnke},pdftitle={Regional inference for a frozen Fast Feature Field}}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{.46em}
+\titleformat{\section}{\large\bfseries\color{ink}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{.65em}{.12em}
+\renewcommand{\arraystretch}{1.15}
+\begin{document}
+{\fontsize{22}{25}\selectfont\bfseries\color{ink}Regional inference for a frozen\\Fast Feature Field\par}
+{\small\color{muted}Robert Jahnke \hfill 24 November 2026}\par
+\vspace{.15em}{\color{ink}\hrule}\vspace{.35em}
+An event-camera application may need features at only a handful of locations. Cropping the input to Fast Feature Field (F3) changes its predictions because the network normalizes each channel using responses from across the image. We estimate these global factors on a coarse grid, then compute the requested features and optical flow at native resolution with the released weights.
+
+\section*{Ten regions on a fresh packet}
+On one Apple M5 Max, we requested ten $32\times32$ regions from each of 43 recordings. Every implementation delivered the same 32 feature channels and two flow components to the host. The original comparison selected the fastest dense method within the specified numerical tolerances. A retrospective comparison admits every dense method with finite output, including FP16. Regional inference was faster on all 43 packets under either comparison.
+
+\begin{center}
+\small\begin{tabular}{@{}lrrr@{}}
+\toprule
+& & \multicolumn{2}{c}{Mean latency saved versus fastest dense}\\
+\cmidrule(l){3-4}
+Panel & Recordings & Within tolerance & All finite\\
+\midrule
+Prophesee EVIMO2v2 & 14 & 13.17\% & 8.35\%\\
+Samsung EVIMO2v2 & 16 & 10.29\% & 8.70\%\\
+M3ED & 6 & 8.84\% & 8.84\%\\
+E-MOTION & 7 & 7.72\% & 7.72\%\\
+\bottomrule\end{tabular}
+\end{center}
+
+The worst regional feature error was 0.215\% relative RMS. Four of 430 flow regions exceeded 0.50 px component RMS, all at image corners, with a maximum of 2.09 px. On the three affected packets, substituting the true normalization factors brought the largest flow discrepancy below $5\times10^{-6}$ px.
+
+\section*{Why the normalization estimate matters}
+The flow implementation runs five encoder blocks at native resolution. It samples the next convolution on that native map and adjusts later preview filters to their coarser spacing. In a bilinear ablation with the same prefix and sample density, the ordinary preview differed from dense flow by 0.684 px on M3ED and 1.208 px on Prophesee. Scale correction alone reduced those errors to 0.094 and 0.326 px. Sampling the first response on the native map as well reduced them to 0.053 and 0.089 px.
+
+\section*{Where selective computation pays}
+For four event-selected $48\times48$ feature regions, a three-block prefix saved 4.11\% on DSEC and 8.36\% on M3ED relative to dense FP16. Dense FP16 was faster on MVSEC and closer to the FP32 field on average in all three panels. With global attention retained, regional depth took about as long as dense at FP32. Regional FP32 segmentation reproduced every requested class, but the optimized dense decoder won all 18 same-precision FP16 timing comparisons. For five outputs from one DSEC packet, sharing the field took 194.54 ms with dense heads and 200.11 ms with regional tails.
+
+\vfill
+{\small\color{muted}
+\href{https://github.com/RobertAris/f3-regional-inference/blob/main/paper/technical.pdf}{Technical report}\enspace$\cdot$\enspace
+\href{https://github.com/RobertAris/f3-regional-inference}{Code and measurements}\enspace$\cdot$\enspace
+\href{https://doi.org/10.1126/scirobotics.aec8218}{Original F3 paper}}
+\end{document}
